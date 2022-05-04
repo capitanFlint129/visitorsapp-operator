@@ -36,8 +36,8 @@ import (
 
 var log = logf.Log.WithName("controller_visitorsapp")
 
-// VisitorsAppReconciler reconciles a VisitorsApp object
-type VisitorsAppReconciler struct {
+// VisitorsAppController reconciles a VisitorsApp object
+type VisitorsAppController struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -59,7 +59,7 @@ type VisitorsAppReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *VisitorsAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling VisitorsApp")
 
@@ -156,7 +156,7 @@ func (r *VisitorsAppReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VisitorsAppReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VisitorsAppController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appv1alpha1.VisitorsApp{}).
 		Owns(&appsv1.Deployment{}).
@@ -164,7 +164,8 @@ func (r *VisitorsAppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *VisitorsAppReconciler) ensureDeployment(request reconcile.Request,
+func (r *VisitorsAppController) ensureDeployment(
+	request reconcile.Request,
 	instance *appv1alpha1.VisitorsApp,
 	dep *appsv1.Deployment,
 ) (*reconcile.Result, error) {
@@ -198,7 +199,8 @@ func (r *VisitorsAppReconciler) ensureDeployment(request reconcile.Request,
 	return nil, nil
 }
 
-func (r *VisitorsAppReconciler) ensureService(request reconcile.Request,
+func (r *VisitorsAppController) ensureService(
+	request reconcile.Request,
 	instance *appv1alpha1.VisitorsApp,
 	s *corev1.Service,
 ) (*reconcile.Result, error) {
@@ -230,7 +232,7 @@ func (r *VisitorsAppReconciler) ensureService(request reconcile.Request,
 	return nil, nil
 }
 
-func (r *VisitorsAppReconciler) ensureSecret(request reconcile.Request,
+func (r *VisitorsAppController) ensureSecret(request reconcile.Request,
 	instance *appv1alpha1.VisitorsApp,
 	s *corev1.Secret,
 ) (*reconcile.Result, error) {
@@ -266,5 +268,12 @@ func labels(v *appv1alpha1.VisitorsApp, tier string) map[string]string {
 		"app":             "visitors",
 		"visitorssite_cr": v.Name,
 		"tier":            tier,
+	}
+}
+
+func NewVisitorsAppController(cli client.Client, scheme *runtime.Scheme) Controller {
+	return &VisitorsAppController{
+		Client: cli,
+		Scheme: scheme,
 	}
 }
