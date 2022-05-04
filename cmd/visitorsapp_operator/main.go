@@ -19,6 +19,7 @@ package main
 import (
 	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
 	"example.com/m/v2/pkg/controllers"
+	"example.com/m/v2/pkg/workload_ensurers"
 	"flag"
 	"os"
 
@@ -77,9 +78,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	ensureWorkloadDirector := workload_ensurers.NewEnsureWorkloadDirector()
+	mysqlEnsurer := workload_ensurers.NewMysqlEnsurer()
+	backendEnsurer := workload_ensurers.NewBackendEnsurer()
+	frontendEnsurer := workload_ensurers.NewFrontendEnsurer()
+
 	visitorsAppController := controllers.NewVisitorsAppController(
 		mgr.GetClient(),
 		mgr.GetScheme(),
+		ensureWorkloadDirector,
+		mysqlEnsurer,
+		backendEnsurer,
+		frontendEnsurer,
 	)
 	if err = visitorsAppController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VisitorsApp")

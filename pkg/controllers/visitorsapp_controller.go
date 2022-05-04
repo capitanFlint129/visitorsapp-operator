@@ -38,8 +38,12 @@ var log = logf.Log.WithName("controller_visitorsapp")
 
 // VisitorsAppController reconciles a VisitorsApp object
 type VisitorsAppController struct {
-	Client client.Client
-	Scheme *runtime.Scheme
+	Client                 client.Client
+	Scheme                 *runtime.Scheme
+	ensureWorkloadDirector ensureWorkloadDirector
+	mysqlEnsurer           workloadEnsurer
+	backendEnsurer         workloadEnsurer
+	frontendEnsurer        workloadEnsurer
 }
 
 //+kubebuilder:rbac:groups=app.my.domain,resources=visitorsapps,verbs=get;list;watch;create;update;patch;delete
@@ -271,9 +275,20 @@ func labels(v *appv1alpha1.VisitorsApp, tier string) map[string]string {
 	}
 }
 
-func NewVisitorsAppController(cli client.Client, scheme *runtime.Scheme) Controller {
+func NewVisitorsAppController(
+	cli client.Client,
+	scheme *runtime.Scheme,
+	ensureWorkloadDirector ensureWorkloadDirector,
+	mysqlEnsurer workloadEnsurer,
+	backendEnsurer workloadEnsurer,
+	frontendEnsurer workloadEnsurer,
+) Controller {
 	return &VisitorsAppController{
-		Client: cli,
-		Scheme: scheme,
+		Client:                 cli,
+		Scheme:                 scheme,
+		ensureWorkloadDirector: ensureWorkloadDirector,
+		mysqlEnsurer:           mysqlEnsurer,
+		backendEnsurer:         backendEnsurer,
+		frontendEnsurer:        frontendEnsurer,
 	}
 }
