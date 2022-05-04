@@ -1,0 +1,75 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+interface Controller {
+    +Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error)
+    +SetupWithManager(mgr ctrl.Manager) error
+}
+
+class visitorsAppController {
+    -client Client
+	-scheme *runtime.Scheme
+	-ensureDirector EnsureWorkloadDirector
+    -mysqlEnsurer WorkloadEnsurer
+    -backendEnsurer WorkloadEnsurer
+    -frontendEnsurer WorkloadEnsurer
+    +Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error)
+    +SetupWithManager(mgr ctrl.Manager) error
+}
+
+class visitorsAppController implements Controller
+
+interface WorkloadEnsurer {
+    +EnsureDeployment()
+    +EnsureService()
+    +EnsureSecret()
+}
+
+class mysqlEnsurer {
+    -client Client
+    +EnsureDeployment()
+    +EnsureService()
+    +EnsureSecret()
+}
+
+class backendEnsurer {
+    -client Client
+    +EnsureDeployment()
+    +EnsureService()
+    +EnsureSecret()
+}
+
+class frontendEnsurer {
+    -client Client
+    +EnsureDeployment()
+    +EnsureService()
+    +EnsureSecret()
+}
+
+class mysqlEnsurer implements WorkloadEnsurer
+class backendEnsurer implements WorkloadEnsurer
+class frontendEnsurer implements WorkloadEnsurer
+
+interface EnsureWorkloadDirector {
+    +SetEnsurer(ensurer WorkloadEnsurer)
+    +EnsureMySQL()
+    +EnsureBackend()
+    +EnsureFrontend()
+}
+
+class ensureWorkloadDirector {
+    +SetEnsurer(ensurer WorkloadEnsurer)
+    +EnsureMySQL()
+    +EnsureBackend()
+    +EnsureFrontend()
+}
+
+class ensureWorkloadDirector implements EnsureWorkloadDirector
+
+EnsureWorkloadDirector --> WorkloadEnsurer
+visitorsAppController --> EnsureWorkloadDirector
+visitorsAppController --> frontendEnsurer
+visitorsAppController --> backendEnsurer
+visitorsAppController --> mysqlEnsurer
+
+@enduml

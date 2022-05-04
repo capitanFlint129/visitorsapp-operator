@@ -1,0 +1,68 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+loop for VisitorsApp CR change
+    activate Controller
+
+    Controller -> ensureDirector: SetEnsurer(mysqlEnsurer)
+    activate ensureDirector
+    deactivate ensureDirector
+
+    Controller -> ensureDirector: EnsureMySQL()
+    activate ensureDirector
+
+    ensureDirector -> mysqlEnsurer: EnsureSecret()
+    activate mysqlEnsurer
+    deactivate mysqlEnsurer
+
+    ensureDirector -> mysqlEnsurer: EnsureDeployment()
+    activate mysqlEnsurer
+    deactivate mysqlEnsurer
+
+    ensureDirector -> mysqlEnsurer: EnsureService()
+    activate mysqlEnsurer
+    deactivate mysqlEnsurer
+
+    deactivate ensureDirector
+
+
+
+    Controller -> ensureDirector: SetEnsurer(backendEnsurer)
+    activate ensureDirector
+    deactivate ensureDirector
+
+    Controller -> ensureDirector: EnsureBackend()
+    activate ensureDirector
+
+    ensureDirector -> backendEnsurer: EnsureDeployment()
+    activate backendEnsurer
+    deactivate backendEnsurer
+
+    ensureDirector -> backendEnsurer: EnsureService()
+    activate backendEnsurer
+    deactivate backendEnsurer
+
+    deactivate ensureDirector
+
+
+    Controller -> ensureDirector: SetEnsurer(frontendEnsurer)
+    activate ensureDirector
+    deactivate ensureDirector
+
+    Controller -> ensureDirector: EnsureFrontend()
+    activate ensureDirector
+
+    ensureDirector -> frontendEnsurer: EnsureDeployment()
+    activate frontendEnsurer
+    deactivate frontendEnsurer
+
+    ensureDirector -> frontendEnsurer: EnsureService()
+    activate frontendEnsurer
+    deactivate frontendEnsurer
+
+    deactivate ensureDirector
+
+
+    deactivate Controller
+end
+@enduml
