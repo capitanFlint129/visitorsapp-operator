@@ -23,7 +23,7 @@ func mysqlAuthName() string {
 	return "mysql-auth"
 }
 
-func (r *VisitorsAppReconciler) mysqlAuthSecret(v *appv1alpha1.VisitorsApp) *corev1.Secret {
+func (r *VisitorsAppController) mysqlAuthSecret(v *appv1alpha1.VisitorsApp) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mysqlAuthName(),
@@ -39,7 +39,7 @@ func (r *VisitorsAppReconciler) mysqlAuthSecret(v *appv1alpha1.VisitorsApp) *cor
 	return secret
 }
 
-func (r *VisitorsAppReconciler) mysqlDeployment(v *appv1alpha1.VisitorsApp) *appsv1.Deployment {
+func (r *VisitorsAppController) mysqlDeployment(v *appv1alpha1.VisitorsApp) *appsv1.Deployment {
 	labels := labels(v, "mysql")
 	size := v.Spec.Size
 
@@ -107,7 +107,7 @@ func (r *VisitorsAppReconciler) mysqlDeployment(v *appv1alpha1.VisitorsApp) *app
 	return dep
 }
 
-func (r *VisitorsAppReconciler) mysqlService(v *appv1alpha1.VisitorsApp) *corev1.Service {
+func (r *VisitorsAppController) mysqlService(v *appv1alpha1.VisitorsApp) *corev1.Service {
 	labels := labels(v, "mysql")
 
 	s := &corev1.Service{
@@ -129,10 +129,10 @@ func (r *VisitorsAppReconciler) mysqlService(v *appv1alpha1.VisitorsApp) *corev1
 }
 
 // Returns whether or not the MySQL deployment is running
-func (r *VisitorsAppReconciler) isMysqlUp(v *appv1alpha1.VisitorsApp) bool {
+func (r *VisitorsAppController) isMysqlUp(v *appv1alpha1.VisitorsApp) bool {
 	deployment := &appsv1.Deployment{}
 
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Client.Get(context.TODO(), types.NamespacedName{
 		Name:      mysqlDeploymentName(),
 		Namespace: v.Namespace,
 	}, deployment)

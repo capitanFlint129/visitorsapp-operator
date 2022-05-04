@@ -26,7 +26,7 @@ func backendServiceName(v *appv1alpha1.VisitorsApp) string {
 	return v.Name + "-backend-service"
 }
 
-func (r *VisitorsAppReconciler) backendDeployment(v *appv1alpha1.VisitorsApp) *appsv1.Deployment {
+func (r *VisitorsAppController) backendDeployment(v *appv1alpha1.VisitorsApp) *appsv1.Deployment {
 	labels := labels(v, "backend")
 	size := v.Spec.Size
 
@@ -95,7 +95,7 @@ func (r *VisitorsAppReconciler) backendDeployment(v *appv1alpha1.VisitorsApp) *a
 	return dep
 }
 
-func (r *VisitorsAppReconciler) backendService(v *appv1alpha1.VisitorsApp) *corev1.Service {
+func (r *VisitorsAppController) backendService(v *appv1alpha1.VisitorsApp) *corev1.Service {
 	labels := labels(v, "backend")
 
 	s := &corev1.Service{
@@ -119,15 +119,15 @@ func (r *VisitorsAppReconciler) backendService(v *appv1alpha1.VisitorsApp) *core
 	return s
 }
 
-func (r *VisitorsAppReconciler) updateBackendStatus(v *appv1alpha1.VisitorsApp) error {
+func (r *VisitorsAppController) updateBackendStatus(v *appv1alpha1.VisitorsApp) error {
 	v.Status.BackendImage = backendImage
-	err := r.Status().Update(context.TODO(), v)
+	err := r.Client.Status().Update(context.TODO(), v)
 	return err
 }
 
-func (r *VisitorsAppReconciler) handleBackendChanges(v *appv1alpha1.VisitorsApp) (*reconcile.Result, error) {
+func (r *VisitorsAppController) handleBackendChanges(v *appv1alpha1.VisitorsApp) (*reconcile.Result, error) {
 	found := &appsv1.Deployment{}
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Client.Get(context.TODO(), types.NamespacedName{
 		Name:      backendDeploymentName(v),
 		Namespace: v.Namespace,
 	}, found)
@@ -140,7 +140,7 @@ func (r *VisitorsAppReconciler) handleBackendChanges(v *appv1alpha1.VisitorsApp)
 
 	if size != *found.Spec.Replicas {
 		found.Spec.Replicas = &size
-		err = r.Update(context.TODO(), found)
+		err = r.Client.Update(context.TODO(), found)
 		if err != nil {
 			log.Error(err, "Failed to update Deployment.", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 			return &reconcile.Result{}, err

@@ -26,7 +26,7 @@ func frontendServiceName(v *appv1alpha1.VisitorsApp) string {
 	return v.Name + "-frontend-service"
 }
 
-func (r *VisitorsAppReconciler) frontendDeployment(v *appv1alpha1.VisitorsApp) *appsv1.Deployment {
+func (r *VisitorsAppController) frontendDeployment(v *appv1alpha1.VisitorsApp) *appsv1.Deployment {
 	labels := labels(v, "frontend")
 	size := int32(1)
 
@@ -72,7 +72,7 @@ func (r *VisitorsAppReconciler) frontendDeployment(v *appv1alpha1.VisitorsApp) *
 	return dep
 }
 
-func (r *VisitorsAppReconciler) frontendService(v *appv1alpha1.VisitorsApp) *corev1.Service {
+func (r *VisitorsAppController) frontendService(v *appv1alpha1.VisitorsApp) *corev1.Service {
 	labels := labels(v, "frontend")
 
 	s := &corev1.Service{
@@ -98,15 +98,15 @@ func (r *VisitorsAppReconciler) frontendService(v *appv1alpha1.VisitorsApp) *cor
 	return s
 }
 
-func (r *VisitorsAppReconciler) updateFrontendStatus(v *appv1alpha1.VisitorsApp) error {
+func (r *VisitorsAppController) updateFrontendStatus(v *appv1alpha1.VisitorsApp) error {
 	v.Status.FrontendImage = frontendImage
-	err := r.Status().Update(context.TODO(), v)
+	err := r.Client.Status().Update(context.TODO(), v)
 	return err
 }
 
-func (r *VisitorsAppReconciler) handleFrontendChanges(v *appv1alpha1.VisitorsApp) (*reconcile.Result, error) {
+func (r *VisitorsAppController) handleFrontendChanges(v *appv1alpha1.VisitorsApp) (*reconcile.Result, error) {
 	found := &appsv1.Deployment{}
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Client.Get(context.TODO(), types.NamespacedName{
 		Name:      frontendDeploymentName(v),
 		Namespace: v.Namespace,
 	}, found)
@@ -120,7 +120,7 @@ func (r *VisitorsAppReconciler) handleFrontendChanges(v *appv1alpha1.VisitorsApp
 
 	if title != existing {
 		(*found).Spec.Template.Spec.Containers[0].Env[0].Value = title
-		err = r.Update(context.TODO(), found)
+		err = r.Client.Update(context.TODO(), found)
 		if err != nil {
 			log.Error(err, "Failed to update Deployment.", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
 			return &reconcile.Result{}, err

@@ -38,7 +38,7 @@ var log = logf.Log.WithName("controller_visitorsapp")
 
 // VisitorsAppController reconciles a VisitorsApp object
 type VisitorsAppController struct {
-	client.Client
+	Client client.Client
 	Scheme *runtime.Scheme
 }
 
@@ -65,7 +65,7 @@ func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Fetch the VisitorsApp instance
 	v := &appv1alpha1.VisitorsApp{}
-	err := r.Get(context.TODO(), req.NamespacedName, v)
+	err := r.Client.Get(context.TODO(), req.NamespacedName, v)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -172,7 +172,7 @@ func (r *VisitorsAppController) ensureDeployment(
 
 	// See if deployment already exists and create if it doesn't
 	found := &appsv1.Deployment{}
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Client.Get(context.TODO(), types.NamespacedName{
 		Name:      dep.Name,
 		Namespace: instance.Namespace,
 	}, found)
@@ -180,7 +180,7 @@ func (r *VisitorsAppController) ensureDeployment(
 
 		// Create the deployment
 		log.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-		err = r.Create(context.TODO(), dep)
+		err = r.Client.Create(context.TODO(), dep)
 
 		if err != nil {
 			// Deployment failed
@@ -205,7 +205,7 @@ func (r *VisitorsAppController) ensureService(
 	s *corev1.Service,
 ) (*reconcile.Result, error) {
 	found := &corev1.Service{}
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Client.Get(context.TODO(), types.NamespacedName{
 		Name:      s.Name,
 		Namespace: instance.Namespace,
 	}, found)
@@ -213,7 +213,7 @@ func (r *VisitorsAppController) ensureService(
 
 		// Create the service
 		log.Info("Creating a new Service", "Service.Namespace", s.Namespace, "Service.Name", s.Name)
-		err = r.Create(context.TODO(), s)
+		err = r.Client.Create(context.TODO(), s)
 
 		if err != nil {
 			// Creation failed
@@ -237,14 +237,14 @@ func (r *VisitorsAppController) ensureSecret(request reconcile.Request,
 	s *corev1.Secret,
 ) (*reconcile.Result, error) {
 	found := &corev1.Secret{}
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Client.Get(context.TODO(), types.NamespacedName{
 		Name:      s.Name,
 		Namespace: instance.Namespace,
 	}, found)
 	if err != nil && errors.IsNotFound(err) {
 		// Create the secret
 		log.Info("Creating a new secret", "Secret.Namespace", s.Namespace, "Secret.Name", s.Name)
-		err = r.Create(context.TODO(), s)
+		err = r.Client.Create(context.TODO(), s)
 
 		if err != nil {
 			// Creation failed
