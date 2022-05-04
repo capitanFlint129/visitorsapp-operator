@@ -1,0 +1,8 @@
+apiVersion: app.my.domain/v1alpha1
+kind: VisitorsApp
+metadata:
+  name: visitorsapp-sample
+spec:
+  size: 1
+  title: "Custom Dashboard Title"
+
