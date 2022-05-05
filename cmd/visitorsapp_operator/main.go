@@ -36,6 +36,16 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
+const (
+	backendPort        = 8000
+	backendServicePort = 30685
+	backendImage       = "jdob/visitors-service:1.0.0"
+
+	frontendPort        = 3000
+	frontendServicePort = 30686
+	frontendImage       = "jdob/visitors-webui:1.0.0"
+)
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -80,8 +90,18 @@ func main() {
 
 	ensureWorkloadDirector := workload_ensurers.NewEnsureWorkloadDirector()
 	mysqlEnsurer := workload_ensurers.NewMysqlEnsurer(mgr.GetClient())
-	backendEnsurer := workload_ensurers.NewBackendEnsurer(mgr.GetClient())
-	frontendEnsurer := workload_ensurers.NewFrontendEnsurer(mgr.GetClient())
+	backendEnsurer := workload_ensurers.NewBackendEnsurer(
+		mgr.GetClient(),
+		backendPort,
+		backendServicePort,
+		backendImage,
+	)
+	frontendEnsurer := workload_ensurers.NewFrontendEnsurer(
+		mgr.GetClient(),
+		frontendPort,
+		frontendServicePort,
+		frontendImage,
+	)
 
 	visitorsAppController := controllers.NewVisitorsAppController(
 		mgr.GetClient(),

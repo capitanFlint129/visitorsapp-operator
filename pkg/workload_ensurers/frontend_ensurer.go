@@ -17,7 +17,10 @@ import (
 )
 
 type frontendEnsurer struct {
-	client client.Client
+	client      client.Client
+	port        int
+	servicePort int
+	image       string
 }
 
 func (f *frontendEnsurer) EnsureDeployment(
@@ -44,10 +47,6 @@ func (f *frontendEnsurer) EnsureSecret(
 	// TODO нужна ли тут паника или что-то еще?
 	return nil, nil
 }
-
-const frontendPort = 3000
-const frontendServicePort = 30686
-const frontendImage = "jdob/visitors-webui:1.0.0"
 
 func frontendDeploymentName(v *appv1alpha1.VisitorsApp) string {
 	return v.Name + "-frontend"
@@ -86,10 +85,10 @@ func (f *frontendEnsurer) frontendDeployment(v *appv1alpha1.VisitorsApp, scheme 
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image: frontendImage,
+						Image: f.image,
 						Name:  "visitors-webui",
 						Ports: []corev1.ContainerPort{{
-							ContainerPort: frontendPort,
+							ContainerPort: int32(f.port),
 							Name:          "visitors",
 						}},
 						Env: env,
@@ -115,9 +114,9 @@ func (f *frontendEnsurer) frontendService(v *appv1alpha1.VisitorsApp, scheme *ru
 			Selector: labels,
 			Ports: []corev1.ServicePort{{
 				Protocol:   corev1.ProtocolTCP,
-				Port:       frontendPort,
-				TargetPort: intstr.FromInt(frontendPort),
-				NodePort:   frontendServicePort,
+				Port:       int32(f.port),
+				TargetPort: intstr.FromInt(f.port),
+				NodePort:   int32(f.servicePort),
 			}},
 			Type: corev1.ServiceTypeNodePort,
 		},
@@ -135,7 +134,7 @@ func (f *frontendEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
 }
 
 func (f *frontendEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
-	instance.Status.FrontendImage = frontendImage
+	instance.Status.FrontendImage = f.image
 	err := f.client.Status().Update(context.TODO(), instance)
 	return err
 }
@@ -170,8 +169,16 @@ func (f *frontendEnsurer) HandleWorkloadChanges(
 	return nil, nil
 }
 
-func NewFrontendEnsurer(cli client.Client) WorkloadEnsurer {
+func NewFrontendEnsurer(
+	cli client.Client,
+	port int,
+	servicePort int,
+	image string,
+) WorkloadEnsurer {
 	return &frontendEnsurer{
-		client: cli,
+		client:      cli,
+		port:        port,
+		servicePort: servicePort,
+		image:       image,
 	}
 }

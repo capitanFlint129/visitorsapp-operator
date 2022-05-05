@@ -16,14 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	backendPort        = 8000
-	backendServicePort = 30685
-	backendImage       = "jdob/visitors-service:1.0.0"
-)
-
 type backendEnsurer struct {
-	client client.Client
+	client      client.Client
+	port        int
+	servicePort int
+	image       string
 }
 
 func (b *backendEnsurer) EnsureDeployment(
@@ -85,11 +82,11 @@ func (b *backendEnsurer) backendDeployment(v *appv1alpha1.VisitorsApp, scheme *r
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image:           backendImage,
+						Image:           b.image,
 						ImagePullPolicy: corev1.PullNever,
 						Name:            "visitors-service",
 						Ports: []corev1.ContainerPort{{
-							ContainerPort: backendPort,
+							ContainerPort: int32(b.port),
 							Name:          "visitors",
 						}},
 						Env: []corev1.EnvVar{
@@ -140,8 +137,8 @@ func (b *backendEnsurer) backendService(v *appv1alpha1.VisitorsApp, scheme *runt
 			Selector: labels,
 			Ports: []corev1.ServicePort{{
 				Protocol:   corev1.ProtocolTCP,
-				Port:       backendPort,
-				TargetPort: intstr.FromInt(backendPort),
+				Port:       int32(b.port),
+				TargetPort: intstr.FromInt(b.port),
 				NodePort:   30685,
 			}},
 			Type: corev1.ServiceTypeNodePort,
@@ -158,7 +155,7 @@ func (b *backendEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
 }
 
 func (b *backendEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
-	instance.Status.BackendImage = backendImage
+	instance.Status.BackendImage = b.image
 	err := b.client.Status().Update(context.TODO(), instance)
 	return err
 }
@@ -192,8 +189,16 @@ func (b *backendEnsurer) HandleWorkloadChanges(
 	return nil, nil
 }
 
-func NewBackendEnsurer(cli client.Client) WorkloadEnsurer {
+func NewBackendEnsurer(
+	cli client.Client,
+	port int,
+	servicePort int,
+	image string,
+) WorkloadEnsurer {
 	return &backendEnsurer{
-		client: cli,
+		client:      cli,
+		port:        port,
+		servicePort: servicePort,
+		image:       image,
 	}
 }
