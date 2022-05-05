@@ -79,9 +79,9 @@ func main() {
 	}
 
 	ensureWorkloadDirector := workload_ensurers.NewEnsureWorkloadDirector()
-	mysqlEnsurer := workload_ensurers.NewMysqlEnsurer()
-	backendEnsurer := workload_ensurers.NewBackendEnsurer()
-	frontendEnsurer := workload_ensurers.NewFrontendEnsurer()
+	mysqlEnsurer := workload_ensurers.NewMysqlEnsurer(mgr.GetClient())
+	backendEnsurer := workload_ensurers.NewBackendEnsurer(mgr.GetClient())
+	frontendEnsurer := workload_ensurers.NewFrontendEnsurer(mgr.GetClient())
 
 	visitorsAppController := controllers.NewVisitorsAppController(
 		mgr.GetClient(),

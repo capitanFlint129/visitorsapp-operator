@@ -20,14 +20,10 @@ package controllers
 import (
 	"context"
 	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
-	"fmt"
-	"time"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -64,8 +60,8 @@ type VisitorsAppController struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling VisitorsApp")
+	//reqLogger := log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
+	//reqLogger.Info("Reconciling VisitorsApp")
 
 	// Fetch the VisitorsApp instance
 	v := &appv1alpha1.VisitorsApp{}
@@ -84,75 +80,25 @@ func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request)
 	var result *reconcile.Result
 
 	// == MySQL ==========
-	result, err = r.ensureSecret(req, v, r.mysqlAuthSecret(v))
+	r.ensureWorkloadDirector.SetEnsurer(r.mysqlEnsurer)
+	result, err = r.ensureWorkloadDirector.EnsureMysql(req, v, r.Scheme)
 	if result != nil {
 		return *result, err
 	}
 
-	result, err = r.ensureDeployment(req, v, r.mysqlDeployment(v))
-	if result != nil {
-		return *result, err
-	}
-
-	result, err = r.ensureService(req, v, r.mysqlService(v))
-	if result != nil {
-		return *result, err
-	}
-
-	mysqlRunning := r.isMysqlUp(v)
-
-	if !mysqlRunning {
-		// If MySQL isn't running yet, requeue the reconcile
-		// to run again after a delay
-		delay := time.Second * time.Duration(5)
-
-		log.Info(fmt.Sprintf("MySQL isn't running, waiting for %s", delay))
-		return reconcile.Result{RequeueAfter: delay}, nil
-	}
-
-	// == Visitors Backend  ==========
-	result, err = r.ensureDeployment(req, v, r.backendDeployment(v))
-	if result != nil {
-		return *result, err
-	}
-
-	result, err = r.ensureService(req, v, r.backendService(v))
-	if result != nil {
-		return *result, err
-	}
-
-	err = r.updateBackendStatus(v)
-	if err != nil {
-		// Requeue the request if the status could not be updated
-		return reconcile.Result{}, err
-	}
-
-	result, err = r.handleBackendChanges(v)
-	if result != nil {
-		return *result, err
-	}
-
-	// == Visitors Frontend ==========
-	result, err = r.ensureDeployment(req, v, r.frontendDeployment(v))
-	if result != nil {
-		return *result, err
-	}
-
-	result, err = r.ensureService(req, v, r.frontendService(v))
-	if result != nil {
-		return *result, err
-	}
-
-	err = r.updateFrontendStatus(v)
-	if err != nil {
-		// Requeue the request
-		return reconcile.Result{}, err
-	}
-
-	result, err = r.handleFrontendChanges(v)
-	if result != nil {
-		return *result, err
-	}
+	//// == Visitors Backend  ==========
+	//r.ensureWorkloadDirector.SetEnsurer(r.backendEnsurer)
+	//result, err = r.ensureWorkloadDirector.EnsureBackend(req, v, r.Scheme)
+	//if result != nil {
+	//	return *result, err
+	//}
+	//
+	//// == Visitors Frontend ==========
+	//r.ensureWorkloadDirector.SetEnsurer(r.frontendEnsurer)
+	//result, err = r.ensureWorkloadDirector.EnsureFrontend(req, v, r.Scheme)
+	//if result != nil {
+	//	return *result, err
+	//}
 
 	// == Finish ==========
 	// Everything went fine, don't requeue
@@ -166,113 +112,6 @@ func (r *VisitorsAppController) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
-}
-
-func (r *VisitorsAppController) ensureDeployment(
-	request reconcile.Request,
-	instance *appv1alpha1.VisitorsApp,
-	dep *appsv1.Deployment,
-) (*reconcile.Result, error) {
-
-	// See if deployment already exists and create if it doesn't
-	found := &appsv1.Deployment{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{
-		Name:      dep.Name,
-		Namespace: instance.Namespace,
-	}, found)
-	if err != nil && errors.IsNotFound(err) {
-
-		// Create the deployment
-		log.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-		err = r.Client.Create(context.TODO(), dep)
-
-		if err != nil {
-			// Deployment failed
-			log.Error(err, "Failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-			return &reconcile.Result{}, err
-		} else {
-			// Deployment was successful
-			return nil, nil
-		}
-	} else if err != nil {
-		// Error that isn't due to the deployment not existing
-		log.Error(err, "Failed to get Deployment")
-		return &reconcile.Result{}, err
-	}
-
-	return nil, nil
-}
-
-func (r *VisitorsAppController) ensureService(
-	request reconcile.Request,
-	instance *appv1alpha1.VisitorsApp,
-	s *corev1.Service,
-) (*reconcile.Result, error) {
-	found := &corev1.Service{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{
-		Name:      s.Name,
-		Namespace: instance.Namespace,
-	}, found)
-	if err != nil && errors.IsNotFound(err) {
-
-		// Create the service
-		log.Info("Creating a new Service", "Service.Namespace", s.Namespace, "Service.Name", s.Name)
-		err = r.Client.Create(context.TODO(), s)
-
-		if err != nil {
-			// Creation failed
-			log.Error(err, "Failed to create new Service", "Service.Namespace", s.Namespace, "Service.Name", s.Name)
-			return &reconcile.Result{}, err
-		} else {
-			// Creation was successful
-			return nil, nil
-		}
-	} else if err != nil {
-		// Error that isn't due to the service not existing
-		log.Error(err, "Failed to get Service")
-		return &reconcile.Result{}, err
-	}
-
-	return nil, nil
-}
-
-func (r *VisitorsAppController) ensureSecret(request reconcile.Request,
-	instance *appv1alpha1.VisitorsApp,
-	s *corev1.Secret,
-) (*reconcile.Result, error) {
-	found := &corev1.Secret{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{
-		Name:      s.Name,
-		Namespace: instance.Namespace,
-	}, found)
-	if err != nil && errors.IsNotFound(err) {
-		// Create the secret
-		log.Info("Creating a new secret", "Secret.Namespace", s.Namespace, "Secret.Name", s.Name)
-		err = r.Client.Create(context.TODO(), s)
-
-		if err != nil {
-			// Creation failed
-			log.Error(err, "Failed to create new Secret", "Secret.Namespace", s.Namespace, "Secret.Name", s.Name)
-			return &reconcile.Result{}, err
-		} else {
-			// Creation was successful
-			return nil, nil
-		}
-	} else if err != nil {
-		// Error that isn't due to the secret not existing
-		log.Error(err, "Failed to get Secret")
-		return &reconcile.Result{}, err
-	}
-
-	return nil, nil
-}
-
-func labels(v *appv1alpha1.VisitorsApp, tier string) map[string]string {
-	return map[string]string{
-		"app":             "visitors",
-		"visitorssite_cr": v.Name,
-		"tier":            tier,
-	}
 }
 
 func NewVisitorsAppController(

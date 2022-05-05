@@ -8,7 +8,7 @@ loop for VisitorsApp CR change
     activate ensureDirector
     deactivate ensureDirector
 
-    Controller -> ensureDirector: EnsureMySQL()
+    Controller -> ensureDirector: EnsureMysql()
     activate ensureDirector
 
     ensureDirector -> mysqlEnsurer: EnsureSecret()

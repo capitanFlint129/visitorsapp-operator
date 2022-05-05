@@ -52,14 +52,14 @@ class frontendEnsurer implements WorkloadEnsurer
 
 interface EnsureWorkloadDirector {
     +SetEnsurer(ensurer WorkloadEnsurer)
-    +EnsureMySQL()
+    +EnsureMysql()
     +EnsureBackend()
     +EnsureFrontend()
 }
 
 class ensureWorkloadDirector {
     +SetEnsurer(ensurer WorkloadEnsurer)
-    +EnsureMySQL()
+    +EnsureMysql()
     +EnsureBackend()
     +EnsureFrontend()
 }
@@ -67,9 +67,9 @@ class ensureWorkloadDirector {
 class ensureWorkloadDirector implements EnsureWorkloadDirector
 
 EnsureWorkloadDirector --> WorkloadEnsurer
-visitorsAppController --> EnsureWorkloadDirector
-visitorsAppController --> frontendEnsurer
-visitorsAppController --> backendEnsurer
-visitorsAppController --> mysqlEnsurer
+visitorsAppController o--> EnsureWorkloadDirector
+visitorsAppController o--> frontendEnsurer
+visitorsAppController o--> backendEnsurer
+visitorsAppController o--> mysqlEnsurer
 
 @enduml
