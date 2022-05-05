@@ -64,8 +64,8 @@ func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request)
 	//reqLogger.Info("Reconciling VisitorsApp")
 
 	// Fetch the VisitorsApp instance
-	v := &appv1alpha1.VisitorsApp{}
-	err := r.Client.Get(context.TODO(), req.NamespacedName, v)
+	visitorAppInstance := &appv1alpha1.VisitorsApp{}
+	err := r.Client.Get(context.TODO(), req.NamespacedName, visitorAppInstance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -81,21 +81,21 @@ func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// == MySQL ==========
 	r.ensureWorkloadDirector.SetEnsurer(r.mysqlEnsurer)
-	result, err = r.ensureWorkloadDirector.EnsureMysql(req, v, r.Scheme)
+	result, err = r.ensureWorkloadDirector.EnsureMysql(req, visitorAppInstance, r.Scheme)
 	if result != nil {
 		return *result, err
 	}
 
 	// == Visitors Backend  ==========
 	r.ensureWorkloadDirector.SetEnsurer(r.backendEnsurer)
-	result, err = r.ensureWorkloadDirector.EnsureBackend(req, v, r.Scheme)
+	result, err = r.ensureWorkloadDirector.EnsureBackend(req, visitorAppInstance, r.Scheme)
 	if result != nil {
 		return *result, err
 	}
 
 	// == Visitors Frontend ==========
 	r.ensureWorkloadDirector.SetEnsurer(r.frontendEnsurer)
-	result, err = r.ensureWorkloadDirector.EnsureFrontend(req, v, r.Scheme)
+	result, err = r.ensureWorkloadDirector.EnsureFrontend(req, visitorAppInstance, r.Scheme)
 	if result != nil {
 		return *result, err
 	}

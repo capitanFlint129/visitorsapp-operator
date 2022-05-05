@@ -15,7 +15,10 @@ import (
 )
 
 type mysqlEnsurer struct {
-	client client.Client
+	client         client.Client
+	deploymentName string
+	serviceName    string
+	authName       string
 }
 
 func (m *mysqlEnsurer) EnsureDeployment(
@@ -42,22 +45,41 @@ func (m *mysqlEnsurer) EnsureSecret(
 	return ensureSecret(request, instance, m.mysqlAuthSecret(instance, scheme), m.client)
 }
 
-func mysqlDeploymentName() string {
-	return "mysql"
+// CheckWorkload returns whether the MySQL deployment is running
+func (m *mysqlEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
+	deployment := &appsv1.Deployment{}
+
+	err := m.client.Get(context.TODO(), types.NamespacedName{
+		Name:      m.deploymentName,
+		Namespace: v.Namespace,
+	}, deployment)
+
+	if err != nil {
+		// log.Error(err, "Deployment mysql not found")
+		return false
+	}
+
+	if deployment.Status.ReadyReplicas == 1 {
+		return true
+	}
+
+	return false
 }
 
-func mysqlServiceName() string {
-	return "mysql-service"
+func (m *mysqlEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
+	return nil
 }
 
-func mysqlAuthName() string {
-	return "mysql-auth"
+func (m *mysqlEnsurer) HandleWorkloadChanges(
+	instance *appv1alpha1.VisitorsApp,
+) (*reconcile.Result, error) {
+	return nil, nil
 }
 
 func (m *mysqlEnsurer) mysqlAuthSecret(v *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      mysqlAuthName(),
+			Name:      m.authName,
 			Namespace: v.Namespace,
 		},
 		Type: "Opaque",
@@ -76,21 +98,21 @@ func (m *mysqlEnsurer) mysqlDeployment(v *appv1alpha1.VisitorsApp, scheme *runti
 
 	userSecret := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: mysqlAuthName()},
+			LocalObjectReference: corev1.LocalObjectReference{Name: m.authName},
 			Key:                  "username",
 		},
 	}
 
 	passwordSecret := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: mysqlAuthName()},
+			LocalObjectReference: corev1.LocalObjectReference{Name: m.authName},
 			Key:                  "password",
 		},
 	}
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      mysqlDeploymentName(),
+			Name:      m.deploymentName,
 			Namespace: v.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -143,7 +165,7 @@ func (m *mysqlEnsurer) mysqlService(v *appv1alpha1.VisitorsApp, scheme *runtime.
 
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      mysqlServiceName(),
+			Name:      m.serviceName,
 			Namespace: v.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -159,39 +181,16 @@ func (m *mysqlEnsurer) mysqlService(v *appv1alpha1.VisitorsApp, scheme *runtime.
 	return s
 }
 
-// Returns whether the MySQL deployment is running
-func (m *mysqlEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
-	deployment := &appsv1.Deployment{}
-
-	err := m.client.Get(context.TODO(), types.NamespacedName{
-		Name:      mysqlDeploymentName(),
-		Namespace: v.Namespace,
-	}, deployment)
-
-	if err != nil {
-		// log.Error(err, "Deployment mysql not found")
-		return false
-	}
-
-	if deployment.Status.ReadyReplicas == 1 {
-		return true
-	}
-
-	return false
-}
-
-func (m *mysqlEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
-	return nil
-}
-
-func (m *mysqlEnsurer) HandleWorkloadChanges(
-	instance *appv1alpha1.VisitorsApp,
-) (*reconcile.Result, error) {
-	return nil, nil
-}
-
-func NewMysqlEnsurer(cli client.Client) WorkloadEnsurer {
+func NewMysqlEnsurer(
+	cli client.Client,
+	deploymentName string,
+	serviceName string,
+	authName string,
+) WorkloadEnsurer {
 	return &mysqlEnsurer{
-		client: cli,
+		client:         cli,
+		deploymentName: deploymentName,
+		serviceName:    serviceName,
+		authName:       authName,
 	}
 }

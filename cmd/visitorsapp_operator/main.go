@@ -37,13 +37,21 @@ import (
 )
 
 const (
-	backendPort        = 8000
-	backendServicePort = 30685
-	backendImage       = "jdob/visitors-service:1.0.0"
+	mysqlDeploymentName = "mysql"
+	mysqlServiceName    = "mysql-service"
+	mysqlAuthName       = "mysql-auth"
 
-	frontendPort        = 3000
-	frontendServicePort = 30686
-	frontendImage       = "jdob/visitors-webui:1.0.0"
+	backendPort              = 8000
+	backendServicePort       = 30685
+	backendImage             = "jdob/visitors-service:1.0.0"
+	backendDeploymentPostfix = "-backend"
+	backendServicePostfix    = "-backend-service"
+
+	frontendPort              = 3000
+	frontendServicePort       = 30686
+	frontendImage             = "jdob/visitors-webui:1.0.0"
+	frontendDeploymentPostfix = "-frontend"
+	frontendServicePostfix    = "-frontend-service"
 )
 
 var (
@@ -89,18 +97,29 @@ func main() {
 	}
 
 	ensureWorkloadDirector := workload_ensurers.NewEnsureWorkloadDirector()
-	mysqlEnsurer := workload_ensurers.NewMysqlEnsurer(mgr.GetClient())
+	mysqlEnsurer := workload_ensurers.NewMysqlEnsurer(
+		mgr.GetClient(),
+		mysqlDeploymentName,
+		mysqlServiceName,
+		mysqlAuthName,
+	)
 	backendEnsurer := workload_ensurers.NewBackendEnsurer(
 		mgr.GetClient(),
 		backendPort,
 		backendServicePort,
 		backendImage,
+		mysqlAuthName,
+		mysqlServiceName,
+		backendDeploymentPostfix,
+		backendServicePostfix,
 	)
 	frontendEnsurer := workload_ensurers.NewFrontendEnsurer(
 		mgr.GetClient(),
 		frontendPort,
 		frontendServicePort,
 		frontendImage,
+		frontendDeploymentPostfix,
+		frontendServicePostfix,
 	)
 
 	visitorsAppController := controllers.NewVisitorsAppController(

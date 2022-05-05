@@ -17,10 +17,14 @@ import (
 )
 
 type backendEnsurer struct {
-	client      client.Client
-	port        int
-	servicePort int
-	image       string
+	client            client.Client
+	port              int
+	servicePort       int
+	image             string
+	mysqlAuthName     string
+	mysqlServiceName  string
+	deploymentPostfix string
+	servicePostfix    string
 }
 
 func (b *backendEnsurer) EnsureDeployment(
@@ -48,27 +52,67 @@ func (b *backendEnsurer) EnsureSecret(
 	return nil, nil
 }
 
+func (b *backendEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
+	// TODO подумать над реализацией
+	return true
+}
+
+func (b *backendEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
+	instance.Status.BackendImage = b.image
+	err := b.client.Status().Update(context.TODO(), instance)
+	return err
+}
+
+func (b *backendEnsurer) HandleWorkloadChanges(
+	instance *appv1alpha1.VisitorsApp,
+) (*reconcile.Result, error) {
+	found := &appsv1.Deployment{}
+	err := b.client.Get(context.TODO(), types.NamespacedName{
+		Name:      instance.Name + b.deploymentPostfix,
+		Namespace: instance.Namespace,
+	}, found)
+	if err != nil {
+		// The deployment may not have been created yet, so requeue
+		return &reconcile.Result{RequeueAfter: 5 * time.Second}, err
+	}
+
+	size := instance.Spec.Size
+
+	if size != *found.Spec.Replicas {
+		found.Spec.Replicas = &size
+		err = b.client.Update(context.TODO(), found)
+		if err != nil {
+			//log.Error(err, "Failed to update Deployment.", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			return &reconcile.Result{}, err
+		}
+		// Spec updated - return and requeue
+		return &reconcile.Result{Requeue: true}, nil
+	}
+
+	return nil, nil
+}
+
 func (b *backendEnsurer) backendDeployment(v *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *appsv1.Deployment {
 	labels := labels(v, "backend")
 	size := v.Spec.Size
 
 	userSecret := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: mysqlAuthName()},
+			LocalObjectReference: corev1.LocalObjectReference{Name: b.mysqlAuthName},
 			Key:                  "username",
 		},
 	}
 
 	passwordSecret := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: mysqlAuthName()},
+			LocalObjectReference: corev1.LocalObjectReference{Name: b.mysqlAuthName},
 			Key:                  "password",
 		},
 	}
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      backendDeploymentName(v),
+			Name:      v.Name + b.deploymentPostfix,
 			Namespace: v.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -96,7 +140,7 @@ func (b *backendEnsurer) backendDeployment(v *appv1alpha1.VisitorsApp, scheme *r
 							},
 							{
 								Name:  "MYSQL_SERVICE_HOST",
-								Value: mysqlServiceName(),
+								Value: b.mysqlServiceName,
 							},
 							{
 								Name:      "MYSQL_USERNAME",
@@ -117,20 +161,12 @@ func (b *backendEnsurer) backendDeployment(v *appv1alpha1.VisitorsApp, scheme *r
 	return dep
 }
 
-func backendDeploymentName(v *appv1alpha1.VisitorsApp) string {
-	return v.Name + "-backend"
-}
-
-func backendServiceName(v *appv1alpha1.VisitorsApp) string {
-	return v.Name + "-backend-service"
-}
-
 func (b *backendEnsurer) backendService(v *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *corev1.Service {
 	labels := labels(v, "backend")
 
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      backendServiceName(v),
+			Name:      v.Name + b.servicePostfix,
 			Namespace: v.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -149,56 +185,24 @@ func (b *backendEnsurer) backendService(v *appv1alpha1.VisitorsApp, scheme *runt
 	return s
 }
 
-func (b *backendEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
-	// TODO подумать над реализацией
-	return true
-}
-
-func (b *backendEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
-	instance.Status.BackendImage = b.image
-	err := b.client.Status().Update(context.TODO(), instance)
-	return err
-}
-
-func (b *backendEnsurer) HandleWorkloadChanges(
-	instance *appv1alpha1.VisitorsApp,
-) (*reconcile.Result, error) {
-	found := &appsv1.Deployment{}
-	err := b.client.Get(context.TODO(), types.NamespacedName{
-		Name:      backendDeploymentName(instance),
-		Namespace: instance.Namespace,
-	}, found)
-	if err != nil {
-		// The deployment may not have been created yet, so requeue
-		return &reconcile.Result{RequeueAfter: 5 * time.Second}, err
-	}
-
-	size := instance.Spec.Size
-
-	if size != *found.Spec.Replicas {
-		found.Spec.Replicas = &size
-		err = b.client.Update(context.TODO(), found)
-		if err != nil {
-			//log.Error(err, "Failed to update Deployment.", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
-			return &reconcile.Result{}, err
-		}
-		// Spec updated - return and requeue
-		return &reconcile.Result{Requeue: true}, nil
-	}
-
-	return nil, nil
-}
-
 func NewBackendEnsurer(
 	cli client.Client,
 	port int,
 	servicePort int,
 	image string,
+	mysqlAuthName string,
+	mysqlServiceName string,
+	deploymentPostfix string,
+	servicePostfix string,
 ) WorkloadEnsurer {
 	return &backendEnsurer{
-		client:      cli,
-		port:        port,
-		servicePort: servicePort,
-		image:       image,
+		client:            cli,
+		port:              port,
+		servicePort:       servicePort,
+		image:             image,
+		mysqlAuthName:     mysqlAuthName,
+		mysqlServiceName:  mysqlServiceName,
+		deploymentPostfix: deploymentPostfix,
+		servicePostfix:    servicePostfix,
 	}
 }

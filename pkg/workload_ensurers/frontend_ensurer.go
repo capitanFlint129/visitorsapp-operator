@@ -17,10 +17,12 @@ import (
 )
 
 type frontendEnsurer struct {
-	client      client.Client
-	port        int
-	servicePort int
-	image       string
+	client            client.Client
+	port              int
+	servicePort       int
+	image             string
+	deploymentPostfix string
+	servicePostfix    string
 }
 
 func (f *frontendEnsurer) EnsureDeployment(
@@ -48,31 +50,64 @@ func (f *frontendEnsurer) EnsureSecret(
 	return nil, nil
 }
 
-func frontendDeploymentName(v *appv1alpha1.VisitorsApp) string {
-	return v.Name + "-frontend"
+func (f *frontendEnsurer) CheckWorkload(instance *appv1alpha1.VisitorsApp) bool {
+	// TODO подумать над реализацией
+	return true
 }
 
-func frontendServiceName(v *appv1alpha1.VisitorsApp) string {
-	return v.Name + "-frontend-service"
+func (f *frontendEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
+	instance.Status.FrontendImage = f.image
+	err := f.client.Status().Update(context.TODO(), instance)
+	return err
 }
 
-func (f *frontendEnsurer) frontendDeployment(v *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *appsv1.Deployment {
-	labels := labels(v, "frontend")
+func (f *frontendEnsurer) HandleWorkloadChanges(
+	instance *appv1alpha1.VisitorsApp,
+) (*reconcile.Result, error) {
+	found := &appsv1.Deployment{}
+	err := f.client.Get(context.TODO(), types.NamespacedName{
+		Name:      instance.Name + f.deploymentPostfix,
+		Namespace: instance.Namespace,
+	}, found)
+	if err != nil {
+		// The deployment may not have been created yet, so requeue
+		return &reconcile.Result{RequeueAfter: 5 * time.Second}, err
+	}
+
+	title := instance.Spec.Title
+	existing := (*found).Spec.Template.Spec.Containers[0].Env[0].Value
+
+	if title != existing {
+		(*found).Spec.Template.Spec.Containers[0].Env[0].Value = title
+		err = f.client.Update(context.TODO(), found)
+		if err != nil {
+			//log.Error(err, "Failed to update Deployment.", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			return &reconcile.Result{}, err
+		}
+		// Spec updated - return and requeue
+		return &reconcile.Result{Requeue: true}, nil
+	}
+
+	return nil, nil
+}
+
+func (f *frontendEnsurer) frontendDeployment(instance *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *appsv1.Deployment {
+	labels := labels(instance, "frontend")
 	size := int32(1)
 
 	// If the header was specified, add it as an env variable
 	env := []corev1.EnvVar{}
-	if v.Spec.Title != "" {
+	if instance.Spec.Title != "" {
 		env = append(env, corev1.EnvVar{
 			Name:  "REACT_APP_TITLE",
-			Value: v.Spec.Title,
+			Value: instance.Spec.Title,
 		})
 	}
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      frontendDeploymentName(v),
-			Namespace: v.Namespace,
+			Name:      instance.Name + f.deploymentPostfix,
+			Namespace: instance.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &size,
@@ -98,17 +133,17 @@ func (f *frontendEnsurer) frontendDeployment(v *appv1alpha1.VisitorsApp, scheme 
 		},
 	}
 
-	controllerutil.SetControllerReference(v, dep, scheme)
+	controllerutil.SetControllerReference(instance, dep, scheme)
 	return dep
 }
 
-func (f *frontendEnsurer) frontendService(v *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *corev1.Service {
-	labels := labels(v, "frontend")
+func (f *frontendEnsurer) frontendService(instance *appv1alpha1.VisitorsApp, scheme *runtime.Scheme) *corev1.Service {
+	labels := labels(instance, "frontend")
 
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      frontendServiceName(v),
-			Namespace: v.Namespace,
+			Name:      instance.Name + f.servicePostfix,
+			Namespace: instance.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: labels,
@@ -124,49 +159,8 @@ func (f *frontendEnsurer) frontendService(v *appv1alpha1.VisitorsApp, scheme *ru
 
 	//log.Info("Service Spec", "Service.Name", s.ObjectMeta.Name)
 
-	controllerutil.SetControllerReference(v, s, scheme)
+	controllerutil.SetControllerReference(instance, s, scheme)
 	return s
-}
-
-func (f *frontendEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
-	// TODO подумать над реализацией
-	return true
-}
-
-func (f *frontendEnsurer) UpdateStatus(instance *appv1alpha1.VisitorsApp) error {
-	instance.Status.FrontendImage = f.image
-	err := f.client.Status().Update(context.TODO(), instance)
-	return err
-}
-
-func (f *frontendEnsurer) HandleWorkloadChanges(
-	instance *appv1alpha1.VisitorsApp,
-) (*reconcile.Result, error) {
-	found := &appsv1.Deployment{}
-	err := f.client.Get(context.TODO(), types.NamespacedName{
-		Name:      frontendDeploymentName(instance),
-		Namespace: instance.Namespace,
-	}, found)
-	if err != nil {
-		// The deployment may not have been created yet, so requeue
-		return &reconcile.Result{RequeueAfter: 5 * time.Second}, err
-	}
-
-	title := instance.Spec.Title
-	existing := (*found).Spec.Template.Spec.Containers[0].Env[0].Value
-
-	if title != existing {
-		(*found).Spec.Template.Spec.Containers[0].Env[0].Value = title
-		err = f.client.Update(context.TODO(), found)
-		if err != nil {
-			//log.Error(err, "Failed to update Deployment.", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
-			return &reconcile.Result{}, err
-		}
-		// Spec updated - return and requeue
-		return &reconcile.Result{Requeue: true}, nil
-	}
-
-	return nil, nil
 }
 
 func NewFrontendEnsurer(
@@ -174,11 +168,15 @@ func NewFrontendEnsurer(
 	port int,
 	servicePort int,
 	image string,
+	deploymentPostfix string,
+	servicePostfix string,
 ) WorkloadEnsurer {
 	return &frontendEnsurer{
-		client:      cli,
-		port:        port,
-		servicePort: servicePort,
-		image:       image,
+		client:            cli,
+		port:              port,
+		servicePort:       servicePort,
+		image:             image,
+		deploymentPostfix: deploymentPostfix,
+		servicePostfix:    servicePostfix,
 	}
 }
