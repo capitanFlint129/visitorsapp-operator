@@ -86,19 +86,19 @@ func (r *VisitorsAppController) Reconcile(ctx context.Context, req ctrl.Request)
 		return *result, err
 	}
 
-	//// == Visitors Backend  ==========
-	//r.ensureWorkloadDirector.SetEnsurer(r.backendEnsurer)
-	//result, err = r.ensureWorkloadDirector.EnsureBackend(req, v, r.Scheme)
-	//if result != nil {
-	//	return *result, err
-	//}
-	//
-	//// == Visitors Frontend ==========
-	//r.ensureWorkloadDirector.SetEnsurer(r.frontendEnsurer)
-	//result, err = r.ensureWorkloadDirector.EnsureFrontend(req, v, r.Scheme)
-	//if result != nil {
-	//	return *result, err
-	//}
+	// == Visitors Backend  ==========
+	r.ensureWorkloadDirector.SetEnsurer(r.backendEnsurer)
+	result, err = r.ensureWorkloadDirector.EnsureBackend(req, v, r.Scheme)
+	if result != nil {
+		return *result, err
+	}
+
+	// == Visitors Frontend ==========
+	r.ensureWorkloadDirector.SetEnsurer(r.frontendEnsurer)
+	result, err = r.ensureWorkloadDirector.EnsureFrontend(req, v, r.Scheme)
+	if result != nil {
+		return *result, err
+	}
 
 	// == Finish ==========
 	// Everything went fine, don't requeue
