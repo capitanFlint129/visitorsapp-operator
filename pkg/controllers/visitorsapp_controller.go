@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// TODO добавить pkg
 package controllers
 
 import (
 	"context"
+
 	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

@@ -2,7 +2,6 @@ package workload_ensurers
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )

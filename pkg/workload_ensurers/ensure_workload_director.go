@@ -1,10 +1,10 @@
 package workload_ensurers
 
 import (
-	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"time"
 
+	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -43,7 +43,6 @@ func (e *ensureWorkloadDirector) EnsureMysql(
 		// to run again after a delay
 		delay := time.Second * time.Duration(5)
 
-		// TODO настроить логи
 		// log.Info(fmt.Sprintf("MySQL isn't running, waiting for %s", delay))
 		return &reconcile.Result{RequeueAfter: delay}, nil
 	}

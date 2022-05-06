@@ -2,7 +2,6 @@ package workload_ensurers
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	appv1alpha1 "example.com/m/v2/pkg/api/v1alpha1"
@@ -10,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -48,12 +48,10 @@ func (b *backendEnsurer) EnsureSecret(
 	instance *appv1alpha1.VisitorsApp,
 	scheme *runtime.Scheme,
 ) (*reconcile.Result, error) {
-	// TODO нужна ли тут паника или что-то еще?
 	return nil, nil
 }
 
 func (b *backendEnsurer) CheckWorkload(v *appv1alpha1.VisitorsApp) bool {
-	// TODO подумать над реализацией
 	return true
 }
 
