@@ -66,7 +66,7 @@ class ensureWorkloadDirector {
 
 class ensureWorkloadDirector implements EnsureWorkloadDirector
 
-EnsureWorkloadDirector --> WorkloadEnsurer
+ensureWorkloadDirector --> WorkloadEnsurer
 visitorsAppController o--> EnsureWorkloadDirector
 visitorsAppController o--> frontendEnsurer
 visitorsAppController o--> backendEnsurer
